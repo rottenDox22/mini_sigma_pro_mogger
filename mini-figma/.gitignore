@@ -1,0 +1,10 @@
+# Зависимости и сборка
+node_modules
+dist
+*.tsbuildinfo
+
+# Локальщина
+.env
+.env.*
+*.local
+npm-debug.log*

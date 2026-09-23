@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "timeout": {
+      "startup": 120000
+    },
+    "servers": {
+      "figsor": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "figsor"
+        ]
+      }
+    }
+  }
+}

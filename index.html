@@ -32,15 +32,17 @@
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
     }
-    .reveal { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
-    .reveal.is-visible { opacity: 1; transform: none; }
+    /* Scroll reveal only applies when JS is active; without JS, content stays fully visible. */
+    .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+    .js .reveal.is-visible { opacity: 1; transform: none; }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .reveal { opacity: 1; transform: none; transition: none; }
+      .js .reveal { opacity: 1; transform: none; transition: none; }
       * { animation: none !important; transition: none !important; }
     }
     ::selection { background: #3b82f6; color: #fff; }
   </style>
+  <script>document.documentElement.classList.add('js');</script>
 </head>
 <body class="bg-ink-900 text-slate-200 font-sans">
 
@@ -636,6 +638,32 @@
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
+
+    // CTA form — prevent page reload, show success message
+    const ctaForm = document.querySelector('#cta form');
+    if (ctaForm) {
+      ctaForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = ctaForm.querySelector('#email');
+        const valid = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
+        if (!valid) {
+          if (email) {
+            email.classList.add('ring-2', 'ring-rose-400');
+            email.setAttribute('aria-invalid', 'true');
+            email.focus();
+          }
+          return;
+        }
+        email.classList.remove('ring-2', 'ring-rose-400');
+        email.removeAttribute('aria-invalid');
+        ctaForm.innerHTML =
+          '<p class="text-center text-lg font-semibold text-white" role="status">' +
+          'Almost there — check your inbox to activate your workspace.</p>' +
+          '<p class="mt-2 text-sm text-blue-100">We just sent a confirmation link to ' +
+          '<span class="font-semibold text-white"></span>.</p>';
+        ctaForm.querySelector('span').textContent = email.value.trim();
+      });
+    }
   </script>
 </body>
 </html>

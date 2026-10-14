@@ -1,0 +1,1483 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mini-figma — редактор холста в браузере</title>
+  <meta name="description" content="mini-figma — учебный редактор холста в браузере: рисование фигур, слои, свойства и горячие клавиши. Без установки и регистрации." />
+  <meta name="theme-color" content="#f8fafc" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="mini-figma — редактор холста в браузере" />
+  <meta property="og:description" content="Рисуй фигуры прямо в браузере. Прямоугольники, эллипсы, слои, свойства, горячие клавиши. Без установки и регистрации." />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='8'%20fill='%232563eb'/%3E%3Crect%20x='7'%20y='9'%20width='12'%20height='11'%20rx='2'%20fill='white'/%3E%3Ccircle%20cx='21'%20cy='20'%20r='5'%20fill='white'%20opacity='.85'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ============================================================
+       Токены
+       ============================================================ */
+    :root {
+      color-scheme: light;
+
+      --bg: #f8fafc;
+      --surface-1: #ffffff;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #64748b;
+
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-active: #1e40af;
+      --primary-tint: #eff6ff;
+      --on-primary: #ffffff;
+
+      --danger: #dc2626;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+
+      --shadow-card: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px -12px rgba(37, 99, 235, .25);
+      --shadow-pop: 0 24px 60px -24px rgba(37, 99, 235, .45);
+
+      --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      --container: 1120px;
+      --ease: cubic-bezier(.2, .8, .2, 1);
+    }
+
+    /* ============================================================
+       База
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3 { margin: 0; color: var(--text); }
+    h2 { font-size: clamp(24px, 3vw, 33px); line-height: 1.15; letter-spacing: -.01em; }
+    h3 { font-size: 19px; line-height: 1.3; }
+    p { margin: 0; }
+    a { color: var(--primary); }
+
+    :focus-visible {
+      outline: 3px solid rgba(37, 99, 235, .45);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: var(--container);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: -60px;
+      z-index: 100;
+      background: var(--primary);
+      color: var(--on-primary);
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      font-weight: 600;
+      transition: top .15s var(--ease);
+    }
+    .skip-link:focus { top: 12px; }
+
+    /* ============================================================
+       Кнопки
+       ============================================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 18px;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color .15s var(--ease), border-color .15s var(--ease),
+                  color .15s var(--ease), transform .12s var(--ease), box-shadow .2s var(--ease);
+    }
+    .btn:active { transform: translateY(1px); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: var(--on-primary);
+      box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .6);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:active { background: var(--primary-active); }
+
+    .btn-secondary {
+      background: var(--surface-1);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+    .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+    .btn-lg { padding: 14px 22px; font-size: 16px; border-radius: 14px; }
+
+    /* ============================================================
+       Header
+       ============================================================ */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(248, 250, 252, .82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      transition: box-shadow .2s var(--ease);
+    }
+    .site-header.is-scrolled {
+      box-shadow: 0 8px 24px -20px rgba(15, 23, 42, .5);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      height: 64px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: -.01em;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+
+    .nav { display: flex; gap: 28px; }
+    .nav a {
+      position: relative;
+      padding: 4px 0;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color .15s var(--ease);
+    }
+    .nav a:hover { color: var(--text); }
+    .nav a.is-active { color: var(--primary); }
+    .nav a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -3px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--primary);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .2s var(--ease);
+    }
+    .nav a:hover::after,
+    .nav a.is-active::after { transform: scaleX(1); }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+
+    .burger {
+      display: none;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      background: var(--surface-1);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .burger[aria-expanded="true"] { border-color: var(--primary); color: var(--primary); }
+
+    .mobile-menu {
+      display: none;
+      border-top: 1px solid var(--border);
+      background: var(--surface-1);
+    }
+    .mobile-menu.is-open { display: block; }
+    .mobile-menu nav { display: flex; flex-direction: column; padding: 8px 0; }
+    .mobile-menu a {
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .mobile-menu a:hover { background: var(--surface-2); color: var(--primary); }
+    .mobile-menu .btn { margin: 12px 24px 20px; }
+
+    /* ============================================================
+       Секции
+       ============================================================ */
+    section { scroll-margin-top: 84px; }
+    .section { padding: 88px 0; }
+    .section--white { background: var(--surface-1); }
+    .section--line { border-top: 1px solid var(--border); }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--primary);
+    }
+    .section-head { max-width: 720px; }
+
+    .lead {
+      font-size: 19px;
+      line-height: 1.55;
+      color: var(--text-muted);
+      max-width: 60ch;
+    }
+
+    /* ============================================================
+       Hero
+       ============================================================ */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 76px 0 92px;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(37, 99, 235, .07) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(37, 99, 235, .07) 1px, transparent 1px);
+      background-size: 32px 32px;
+      -webkit-mask-image: radial-gradient(ellipse 85% 70% at 62% 0%, #000 28%, transparent 74%);
+      mask-image: radial-gradient(ellipse 85% 70% at 62% 0%, #000 28%, transparent 74%);
+      pointer-events: none;
+    }
+    .hero-inner {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 56px;
+      align-items: center;
+    }
+    .hero h1 {
+      font-size: clamp(32px, 5.4vw, 54px);
+      line-height: 1.05;
+      letter-spacing: -.02em;
+      margin-bottom: 20px;
+    }
+    .hero .hl { color: var(--primary); }
+    .hero .lead { margin-bottom: 28px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .trust {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 22px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-subtle);
+    }
+    .trust span { display: inline-flex; align-items: center; gap: 8px; }
+    .trust span::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--primary);
+      opacity: .55;
+      flex: none;
+    }
+    .trust span:first-child::before { display: none; }
+
+    /* Демо-холст */
+    .hero-demo { position: relative; }
+    .hero-demo::before {
+      content: "";
+      position: absolute;
+      inset: 20px -18px -18px 20px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(135deg, var(--primary-tint), #e0f2fe);
+      border: 1px solid var(--border);
+      z-index: 0;
+    }
+    .me-panel {
+      position: relative;
+      z-index: 1;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-pop);
+      overflow: hidden;
+    }
+    .me-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .me-tool {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      font: inherit;
+      font-size: 16px;
+      border-radius: 9px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-subtle);
+      cursor: pointer;
+      transition: background-color .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease);
+    }
+    .me-tool:hover { background: var(--surface-1); color: var(--text); border-color: var(--border); }
+    .me-tool.is-active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 10px -4px rgba(37, 99, 235, .7);
+    }
+    .me-sep { width: 1px; height: 20px; background: var(--border-strong); margin: 0 4px; }
+    .me-clear {
+      margin-left: auto;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-subtle);
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: color .15s var(--ease), border-color .15s var(--ease);
+    }
+    .me-clear:hover { color: var(--danger); border-color: var(--danger); }
+
+    .me-stage {
+      position: relative;
+      height: 320px;
+      background-color: var(--surface-1);
+      background-image: radial-gradient(rgba(15, 23, 42, .1) 1px, transparent 1px);
+      background-size: 22px 22px;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .me-stage[data-tool="select"] { cursor: default; }
+    .me-stage:focus-visible { outline: 3px solid rgba(37, 99, 235, .45); outline-offset: -3px; }
+    .me-stage .me-shape { position: absolute; box-sizing: border-box; pointer-events: none; }
+    .me-shape.rect { border-radius: 6px; }
+    .me-shape.ellipse { border-radius: 50%; }
+    .me-shape.is-selected { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .me-hint {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: var(--text-subtle);
+      font-size: 14px;
+      font-weight: 500;
+      pointer-events: none;
+      user-select: none;
+    }
+    .me-hint .me-hint-marks {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 22px;
+      letter-spacing: .3em;
+      color: var(--primary);
+      opacity: .5;
+    }
+    .me-hint.is-hidden { display: none; }
+
+    /* ============================================================
+       Сетки и карточки
+       ============================================================ */
+    .grid-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 44px;
+    }
+    .grid-tech {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 44px;
+    }
+    .card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease);
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); border-color: var(--border-strong); }
+    .card p { margin-top: 8px; font-size: 15px; line-height: 1.6; color: var(--text-muted); }
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      background: var(--primary-tint);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+    }
+
+    /* ============================================================
+       Как это работает
+       ============================================================ */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 44px;
+    }
+    .step {
+      position: relative;
+      padding: 26px 24px 24px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .step-num {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+    .step p { margin-top: 8px; font-size: 15px; color: var(--text-muted); }
+    .kbd-inline {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      padding: 1px 6px;
+    }
+
+    /* ============================================================
+       Горячие клавиши
+       ============================================================ */
+    .keys-wrap { margin-top: 36px; overflow-x: auto; border-radius: var(--radius-lg); }
+    .keys {
+      width: 100%;
+      min-width: 460px;
+      border-collapse: collapse;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .keys th, .keys td {
+      text-align: left;
+      padding: 15px 20px;
+      font-size: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .keys th {
+      font-weight: 500;
+      color: var(--text-muted);
+      width: 55%;
+    }
+    .keys tr:last-child th, .keys tr:last-child td { border-bottom: 0; }
+    kbd {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-bottom-width: 2px;
+      border-radius: 7px;
+      padding: 3px 8px;
+      letter-spacing: .02em;
+    }
+
+    /* ============================================================
+       О проекте
+       ============================================================ */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 40px;
+      align-items: start;
+      margin-top: 12px;
+    }
+    .about-grid .lead { margin-bottom: 24px; }
+    .roadmap {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+    }
+    .roadmap h3 { margin-bottom: 14px; }
+    .roadmap ul { margin: 0; padding: 0; list-style: none; }
+    .roadmap li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 15px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+    .roadmap li:first-child { border-top: 0; }
+    .roadmap li::before {
+      content: "";
+      flex: none;
+      width: 7px;
+      height: 7px;
+      margin-top: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      opacity: .6;
+    }
+
+    /* ============================================================
+       FAQ
+       ============================================================ */
+    .faq { max-width: 780px; margin-top: 36px; border-top: 1px solid var(--border); }
+    .faq-item { border-bottom: 1px solid var(--border); }
+    .faq-q {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 4px;
+      background: none;
+      border: 0;
+      font: inherit;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      transition: color .15s var(--ease);
+    }
+    .faq-q:hover { color: var(--primary); }
+    .faq-q .chev { flex: none; color: var(--text-subtle); transition: transform .3s var(--ease), color .15s var(--ease); }
+    .faq-item.is-open .faq-q { color: var(--primary); }
+    .faq-item.is-open .chev { transform: rotate(180deg); color: var(--primary); }
+    .faq-a {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows .3s var(--ease);
+    }
+    .faq-item.is-open .faq-a { grid-template-rows: 1fr; }
+    .faq-a > div { overflow: hidden; }
+    .faq-a p { margin: 0 0 20px; font-size: 16px; line-height: 1.65; color: var(--text-muted); }
+
+    /* ============================================================
+       Финальный CTA
+       ============================================================ */
+    .cta { padding: 88px 0; }
+    .cta-inner {
+      background: linear-gradient(135deg, var(--primary-tint), #e0f2fe);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 56px 48px;
+      text-align: center;
+    }
+    .cta-inner h2 { margin-bottom: 12px; }
+    .cta-inner .lead { margin: 0 auto 28px; }
+    .cta-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    .cta-links a { font-weight: 500; }
+
+    /* ============================================================
+       Footer
+       ============================================================ */
+    .site-footer {
+      background: #0f172a;
+      color: rgba(255, 255, 255, .65);
+      padding: 56px 0 32px;
+      font-size: 15px;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr;
+      gap: 40px;
+    }
+    .footer-brand .logo { color: #fff; margin-bottom: 14px; }
+    .footer-brand p { max-width: 34ch; color: rgba(255, 255, 255, .6); }
+    .footer-col h3 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, .5);
+      margin-bottom: 14px;
+    }
+    .footer-col ul { list-style: none; margin: 0; padding: 0; }
+    .footer-col li { margin-bottom: 10px; }
+    .site-footer a { color: rgba(255, 255, 255, .8); text-decoration: none; transition: color .15s var(--ease); }
+    .site-footer a:hover { color: #fff; text-decoration: underline; }
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 44px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, .12);
+      font-size: 14px;
+      color: rgba(255, 255, 255, .5);
+    }
+
+    /* ============================================================
+       Появление при скролле
+       ============================================================ */
+    [data-reveal] {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity .5s var(--ease), transform .5s var(--ease);
+    }
+    [data-reveal].is-in { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
+
+    /* ============================================================
+       Адаптив
+       ============================================================ */
+    @media (max-width: 960px) {
+      .grid-cards { grid-template-columns: repeat(2, 1fr); }
+      .grid-tech { grid-template-columns: repeat(2, 1fr); }
+      .hero-inner { grid-template-columns: 1fr; gap: 44px; }
+      .about-grid { grid-template-columns: 1fr; gap: 28px; }
+    }
+    @media (max-width: 860px) {
+      .nav { display: none; }
+      .header-actions .btn { display: none; }
+      .burger { display: grid; }
+    }
+    @media (min-width: 861px) {
+      .mobile-menu { display: none !important; }
+    }
+    @media (max-width: 620px) {
+      .section { padding: 64px 0; }
+      .hero { padding: 52px 0 68px; }
+      .hero-demo::before { display: none; }
+      .grid-cards { grid-template-columns: 1fr; gap: 16px; }
+      .grid-tech { grid-template-columns: 1fr; gap: 16px; }
+      .steps { grid-template-columns: 1fr; gap: 16px; }
+      .cta-inner { padding: 40px 24px; }
+      .me-stage { height: 260px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">К основному содержимому</a>
+
+  <!--
+    ВНЕШНИЕ ССЫЛКИ — единственное место, где живут URL.
+    Демо:   https://rottenDox22.github.io/mini_sigma_pro_mogger/
+    GitHub: https://github.com/rottenDox22/mini_sigma_pro_mogger
+    При смене репозитория/домена обновить здесь и в vite.config.ts (base).
+  -->
+  <header class="site-header" id="top">
+    <div class="container header-inner">
+      <a class="logo" href="#top">
+        <span class="logo-mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+            <rect x="1.6" y="2.4" width="8" height="7" rx="1.5" />
+            <circle cx="10.6" cy="10.4" r="4" fill="currentColor" stroke="none" opacity=".85" />
+          </svg>
+        </span>
+        mini-figma
+      </a>
+
+      <nav class="nav" aria-label="Основная навигация">
+        <a href="#features">Возможности</a>
+        <a href="#how">Как это работает</a>
+        <a href="#tech">Технологии</a>
+        <a href="#about">Исходный код</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-primary" href="https://rottenDox22.github.io/mini_sigma_pro_mogger/" target="_blank" rel="noopener">Открыть редактор</a>
+        <button class="burger" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Открыть меню">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-menu" id="mobile-menu">
+      <nav aria-label="Мобильная навигация">
+        <a href="#features">Возможности</a>
+        <a href="#how">Как это работает</a>
+        <a href="#keys">Горячие клавиши</a>
+        <a href="#tech">Технологии</a>
+        <a href="#about">Исходный код</a>
+        <a href="#faq">Вопросы</a>
+      </nav>
+      <a class="btn btn-primary btn-lg" href="https://rottenDox22.github.io/mini_sigma_pro_mogger/" target="_blank" rel="noopener">Открыть редактор</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ===================== HERO ===================== -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-inner">
+        <div>
+          <p class="eyebrow">Учебный редактор холста</p>
+          <h1 id="hero-title">Рисуй фигуры прямо в браузере — <span class="hl">без установки и регистрации</span></h1>
+          <p class="lead">
+            mini-figma — учебный редактор холста: прямоугольники, эллипсы, слои,
+            свойства фигуры и горячие клавиши. Всё работает на одной странице.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="https://rottenDox22.github.io/mini_sigma_pro_mogger/" target="_blank" rel="noopener">Открыть редактор</a>
+            <a class="btn btn-secondary btn-lg" href="https://github.com/rottenDox22/mini_sigma_pro_mogger" target="_blank" rel="noopener">Смотреть код</a>
+          </div>
+          <p class="trust">
+            <span>React 19</span>
+            <span>TypeScript</span>
+            <span>Vite</span>
+            <span>Tailwind 4</span>
+            <span>работает офлайн</span>
+          </p>
+        </div>
+
+        <div class="hero-demo" id="mini-editor">
+          <div class="me-panel">
+            <div class="me-toolbar" role="toolbar" aria-label="Инструменты демонстрационного холста">
+              <button class="me-tool is-active" type="button" data-tool="select" aria-pressed="true" aria-label="Выделение (V)" title="Выделение (V)">↖</button>
+              <button class="me-tool" type="button" data-tool="rect" aria-pressed="false" aria-label="Прямоугольник (R)" title="Прямоугольник (R)">▭</button>
+              <button class="me-tool" type="button" data-tool="ellipse" aria-pressed="false" aria-label="Эллипс (O)" title="Эллипс (O)">◯</button>
+              <span class="me-sep" aria-hidden="true"></span>
+              <button class="me-clear" type="button" data-clear>Очистить</button>
+            </div>
+            <div class="me-stage" tabindex="0" role="application"
+                 aria-label="Демонстрационный холст. Выберите инструмент и растяните фигуру мышью.">
+              <div class="me-hint" data-hint>
+                <span class="me-hint-marks" aria-hidden="true">▭&nbsp;◯</span>
+                Выбери инструмент и растяни фигуру мышью
+              </div>
+              <noscript>
+                <div class="me-hint">
+                  Демонстрация холста требует JavaScript.
+                  Редактор откроется по кнопке выше.
+                </div>
+              </noscript>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ВОЗМОЖНОСТИ ===================== -->
+    <section class="section section--white section--line" id="features" aria-labelledby="features-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Возможности</p>
+          <h2 id="features-title">Всё, что нужно, чтобы начать рисовать</h2>
+          <p class="lead">Небольшой набор инструментов, каждый — до конца рабочий. Ничего лишнего.</p>
+        </div>
+
+        <div class="grid-cards">
+          <article class="card" data-reveal>
+            <div class="card-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+              </svg>
+            </div>
+            <h3>Инструменты рисования</h3>
+            <p>Три инструмента: выделение, прямоугольник и эллипс. Растяни мышью — фигура готова.</p>
+          </article>
+
+          <article class="card" data-reveal>
+            <div class="card-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3 3 8l9 5 9-5-9-5Z" />
+                <path d="M3 13l9 5 9-5" />
+              </svg>
+            </div>
+            <h3>Слои</h3>
+            <p>Список всех фигур в панели справа. Клик по слою выделяет фигуру на холсте.</p>
+          </article>
+
+          <article class="card" data-reveal>
+            <div class="card-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 7h14M5 17h14" />
+                <circle cx="9" cy="7" r="2.6" />
+                <circle cx="15" cy="17" r="2.6" />
+              </svg>
+            </div>
+            <h3>Свойства фигуры</h3>
+            <p>Размер, позиция, заливка и обводка меняются на лету — в панели справа сверху.</p>
+          </article>
+
+          <article class="card" data-reveal>
+            <div class="card-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 7 4 12l5 5" />
+                <path d="M4 12h11a5 5 0 0 1 0 10h-1" />
+              </svg>
+            </div>
+            <h3>Отмена и повтор</h3>
+            <p>Ошибиться не страшно: <span class="kbd-inline">Ctrl+Z</span> и <span class="kbd-inline">Ctrl+Shift+Z</span> возвращают любой шаг.</p>
+          </article>
+
+          <article class="card" data-reveal>
+            <div class="card-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M16.5 16.5 21 21" />
+                <path d="M11 8v6M8 11h6" />
+              </svg>
+            </div>
+            <h3>Зум и панорамирование</h3>
+            <p>Колесо мыши — зум от 10% до 400%. Пробел + перетаскивание сдвигает холст.</p>
+          </article>
+
+          <article class="card" data-reveal>
+            <div class="card-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3l18 18" />
+                <path d="M17.5 17.5H7A4.5 4.5 0 0 1 6.2 8.6" />
+                <path d="M9.6 5.6A5 5 0 0 1 19 10.4a3.9 3.9 0 0 1 .4 7.1" />
+              </svg>
+            </div>
+            <h3>Работает офлайн</h3>
+            <p>Ни сервера, ни аккаунта, ни сети. Открыл — и сразу рисуешь.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== КАК ЭТО РАБОТАЕТ ===================== -->
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Как это работает</p>
+          <h2 id="how-title">Три шага и первая фигура готова</h2>
+        </div>
+
+        <div class="steps">
+          <div class="step" data-reveal>
+            <span class="step-num" aria-hidden="true">1</span>
+            <h3>Открой редактор</h3>
+            <p>Нажми «Открыть редактор» — без регистрации и установки. Страница откроется сразу.</p>
+          </div>
+          <div class="step" data-reveal>
+            <span class="step-num" aria-hidden="true">2</span>
+            <h3>Нарисуй фигуру</h3>
+            <p>Выбери <span class="kbd-inline">R</span> (прямоугольник) или <span class="kbd-inline">O</span> (эллипс) и растяни мышью по холсту.</p>
+          </div>
+          <div class="step" data-reveal>
+            <span class="step-num" aria-hidden="true">3</span>
+            <h3>Настрой под себя</h3>
+            <p>Выдели фигуру и поменяй размер, позицию, заливку и обводку в панели справа.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ГОРЯЧИЕ КЛАВИШИ ===================== -->
+    <section class="section section--white section--line" id="keys" aria-labelledby="keys-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Горячие клавиши</p>
+          <h2 id="keys-title">Всё под рукой с клавиатуры</h2>
+          <p class="lead">Клавиши работают в любой раскладке — привязка идёт по физической позиции клавиши.</p>
+        </div>
+
+        <div class="keys-wrap" data-reveal>
+          <table class="keys">
+            <tbody>
+              <tr>
+                <th scope="row">Выделение</th>
+                <td><kbd>V</kbd></td>
+              </tr>
+              <tr>
+                <th scope="row">Прямоугольник</th>
+                <td><kbd>R</kbd></td>
+              </tr>
+              <tr>
+                <th scope="row">Эллипс</th>
+                <td><kbd>O</kbd></td>
+              </tr>
+              <tr>
+                <th scope="row">Панорамирование</th>
+                <td><kbd>Space</kbd> + перетаскивание</td>
+              </tr>
+              <tr>
+                <th scope="row">Зум</th>
+                <td>колесо мыши; плавно — <kbd>Ctrl</kbd> + колесо</td>
+              </tr>
+              <tr>
+                <th scope="row">Отмена</th>
+                <td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td>
+              </tr>
+              <tr>
+                <th scope="row">Повтор</th>
+                <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ТЕХНОЛОГИИ ===================== -->
+    <section class="section" id="tech" aria-labelledby="tech-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Под капотом</p>
+          <h2 id="tech-title">На чём это собрано</h2>
+          <p class="lead">Современный фронтенд-стек без экзотики — чтобы код было легко читать и повторять.</p>
+        </div>
+
+        <div class="grid-tech">
+          <div class="card" data-reveal>
+            <h3>React 19</h3>
+            <p>Интерфейс и состояние фигур на обычных хуках, без сторонних библиотек состояния.</p>
+          </div>
+          <div class="card" data-reveal>
+            <h3>TypeScript</h3>
+            <p>Типы описаны в одном месте и служат «языком проекта»: меньше молчаливых багов.</p>
+          </div>
+          <div class="card" data-reveal>
+            <h3>Vite</h3>
+            <p>Мгновенный dev-сервер с горячей перезагрузкой и быстрая продакшн-сборка.</p>
+          </div>
+          <div class="card" data-reveal>
+            <h3>Tailwind CSS 4</h3>
+            <p>Утилитарные стили для интерфейса редактора и его панелей.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== О ПРОЕКТЕ ===================== -->
+    <section class="section section--white section--line" id="about" aria-labelledby="about-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Об проекте</p>
+          <h2 id="about-title">Учебный проект, а не замена Figma</h2>
+        </div>
+
+        <div class="about-grid" data-reveal>
+          <div>
+            <p class="lead">
+              mini-figma я собрал, чтобы разобраться, как в браузере устроены состояние,
+              события мыши и горячие клавиши. Это не продукт и не конкурент Figma — а учебный
+              редактор с честным, небольшим набором функций. Исходный код открыт: можно
+              подсмотреть реализацию или переделать под себя.
+            </p>
+            <a class="btn btn-secondary" href="https://github.com/rottenDox22/mini_sigma_pro_mogger" target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.48v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.1-1.5-1.1-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.9 1.57 2.34 1.12 2.91.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.74-1.05 2.74-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.8-4.57 5.05.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.48A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z" />
+              </svg>
+              Смотреть исходный код
+            </a>
+          </div>
+
+          <aside class="roadmap">
+            <h3>Что дальше</h3>
+            <ul>
+              <li>Поворот фигур</li>
+              <li>Мультивыделение</li>
+              <li>Экспорт в SVG</li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== FAQ ===================== -->
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Вопросы</p>
+          <h2 id="faq-title">Коротко о главном</h2>
+        </div>
+
+        <div class="faq" data-reveal>
+          <div class="faq-item">
+            <button class="faq-q" id="faq-q-1" type="button" aria-expanded="false" aria-controls="faq-1">
+              Нужно что-то устанавливать?
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="faq-a" id="faq-1" role="region" aria-labelledby="faq-q-1"><div><p>Нет. Всё работает в браузере на одной странице — без установки, плагинов и аккаунта.</p></div></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" id="faq-q-2" type="button" aria-expanded="false" aria-controls="faq-2">
+              Это настоящая Figma?
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="faq-a" id="faq-2" role="region" aria-labelledby="faq-q-2"><div><p>Нет. Это небольшой учебный редактор со своим набором функций. Он не связан с Figma и Figma Inc.</p></div></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" id="faq-q-3" type="button" aria-expanded="false" aria-controls="faq-3">
+              Где хранятся фигуры?
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="faq-a" id="faq-3" role="region" aria-labelledby="faq-q-3"><div><p>В памяти вкладки: пока страница открыта — фигуры на месте. Обновил страницу — холст сбрасывается.</p></div></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" id="faq-q-4" type="button" aria-expanded="false" aria-controls="faq-4">
+              Работает на телефоне?
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="faq-a" id="faq-4" role="region" aria-labelledby="faq-q-4"><div><p>Интерфейс адаптивный, но рисовать удобнее мышью или стилусом. На телефоне поддерживается касание.</p></div></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" id="faq-q-5" type="button" aria-expanded="false" aria-controls="faq-5">
+              Нужен интернет?
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="faq-a" id="faq-5" role="region" aria-labelledby="faq-q-5"><div><p>Нет. После загрузки страницы редактор работает офлайн — рисование не обращается к сети.</p></div></div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-q" id="faq-q-6" type="button" aria-expanded="false" aria-controls="faq-6">
+              Можно использовать в своём проекте?
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="faq-a" id="faq-6" role="region" aria-labelledby="faq-q-6"><div><p>Да, код открыт на GitHub: можно изучить, скопировать или переделать под свою задачу.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ФИНАЛЬНЫЙ CTA ===================== -->
+    <section class="cta" id="start" aria-labelledby="cta-title">
+      <div class="container">
+        <div class="cta-inner" data-reveal>
+          <h2 id="cta-title">Попробуй прямо сейчас</h2>
+          <p class="lead">Открой редактор и нарисуй первую фигуру за пару секунд. Регистрация не нужна.</p>
+          <a class="btn btn-primary btn-lg" href="https://rottenDox22.github.io/mini_sigma_pro_mogger/" target="_blank" rel="noopener">Открыть редактор</a>
+          <p class="cta-links">
+            <a href="https://github.com/rottenDox22/mini_sigma_pro_mogger/issues" target="_blank" rel="noopener">Нашёл баг или есть идея? — напиши в Issues</a>
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="logo" href="#top">
+            <span class="logo-mark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <rect x="1.6" y="2.4" width="8" height="7" rx="1.5" />
+                <circle cx="10.6" cy="10.4" r="4" fill="currentColor" stroke="none" opacity=".85" />
+              </svg>
+            </span>
+            mini-figma
+          </a>
+          <p>Учебный редактор холста в браузере. Рисование фигур, слои, свойства и горячие клавиши.</p>
+        </div>
+
+        <div class="footer-col">
+          <h3>Разделы</h3>
+          <ul>
+            <li><a href="#features">Возможности</a></li>
+            <li><a href="#how">Как это работает</a></li>
+            <li><a href="#keys">Горячие клавиши</a></li>
+            <li><a href="#faq">Вопросы</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h3>Ссылки</h3>
+          <ul>
+            <li><a href="https://rottenDox22.github.io/mini_sigma_pro_mogger/" target="_blank" rel="noopener">Открыть редактор</a></li>
+            <li><a href="https://github.com/rottenDox22/mini_sigma_pro_mogger" target="_blank" rel="noopener">Исходный код</a></li>
+            <li><a href="https://github.com/rottenDox22/mini_sigma_pro_mogger/issues" target="_blank" rel="noopener">Сообщить о проблеме</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>© <span data-year>2026</span> rottenDox22 · Сделано на React 19, Vite и Tailwind CSS</span>
+        <span>Учебный проект. Не связан с Figma / Figma Inc.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /* ---------- Год в футере ---------- */
+      var yearEl = document.querySelector("[data-year]");
+      if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
+      /* ---------- Тень header при скролле ---------- */
+      var header = document.querySelector(".site-header");
+      if (header) {
+        var onScroll = function () {
+          header.classList.toggle("is-scrolled", window.scrollY > 8);
+        };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+      }
+
+      /* ---------- Мобильное меню ---------- */
+      var burger = document.querySelector(".burger");
+      var mobileMenu = document.getElementById("mobile-menu");
+      if (burger && mobileMenu) {
+        var setMenu = function (open) {
+          mobileMenu.classList.toggle("is-open", open);
+          burger.setAttribute("aria-expanded", String(open));
+          burger.setAttribute("aria-label", open ? "Закрыть меню" : "Открыть меню");
+        };
+        burger.addEventListener("click", function () {
+          setMenu(!mobileMenu.classList.contains("is-open"));
+        });
+        mobileMenu.querySelectorAll("a").forEach(function (a) {
+          a.addEventListener("click", function () { setMenu(false); });
+        });
+        window.addEventListener("resize", function () {
+          if (window.innerWidth > 860) setMenu(false);
+        });
+      }
+
+      /* ---------- FAQ ---------- */
+      var faqItems = Array.prototype.slice.call(document.querySelectorAll(".faq-item"));
+      faqItems.forEach(function (item) {
+        var btn = item.querySelector(".faq-q");
+        if (!btn) return;
+        btn.addEventListener("click", function () {
+          var willOpen = !item.classList.contains("is-open");
+          faqItems.forEach(function (other) {
+            if (other !== item) {
+              other.classList.remove("is-open");
+              var b = other.querySelector(".faq-q");
+              if (b) b.setAttribute("aria-expanded", "false");
+            }
+          });
+          item.classList.toggle("is-open", willOpen);
+          btn.setAttribute("aria-expanded", String(willOpen));
+        });
+      });
+
+      /* ---------- Появление при скролле ---------- */
+      var reveals = Array.prototype.slice.call(document.querySelectorAll("[data-reveal]"));
+      if ("IntersectionObserver" in window && reveals.length) {
+        var revealObserver = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("is-in");
+              revealObserver.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+        reveals.forEach(function (el) { revealObserver.observe(el); });
+      } else {
+        reveals.forEach(function (el) { el.classList.add("is-in"); });
+      }
+
+      /* ---------- Подсветка активного пункта меню ---------- */
+      var navLinks = Array.prototype.slice.call(document.querySelectorAll(".nav a[href^='#']"));
+      var spySections = navLinks
+        .map(function (a) { return document.querySelector(a.getAttribute("href")); })
+        .filter(Boolean);
+      if ("IntersectionObserver" in window && spySections.length) {
+        var spy = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            var id = "#" + entry.target.id;
+            navLinks.forEach(function (a) {
+              a.classList.toggle("is-active", a.getAttribute("href") === id);
+            });
+          });
+        }, { rootMargin: "-45% 0px -50% 0px", threshold: 0 });
+        spySections.forEach(function (s) { spy.observe(s); });
+      }
+
+      /* ---------- Мини-редактор в hero ---------- */
+      var root = document.getElementById("mini-editor");
+      if (!root) return;
+
+      var stage = root.querySelector(".me-stage");
+      var hint = root.querySelector("[data-hint]");
+      var toolButtons = Array.prototype.slice.call(root.querySelectorAll("[data-tool]"));
+      var clearButton = root.querySelector("[data-clear]");
+      if (!stage) return;
+
+      var PALETTE = [
+        { fill: "#dbeafe", stroke: "#2563eb" },
+        { fill: "#ccfbf1", stroke: "#0d9488" },
+        { fill: "#fef3c7", stroke: "#d97706" },
+        { fill: "#fee2e2", stroke: "#dc2626" },
+        { fill: "#e0e7ff", stroke: "#4f46e5" }
+      ];
+
+      var tool = "select";
+      var shapes = [];
+      var selectedId = null;
+      var draft = null;
+      var move = null;
+      var colorIndex = 0;
+      var seq = 0;
+
+      function bounds() { return stage.getBoundingClientRect(); }
+      function pointFromEvent(e) {
+        var r = bounds();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+      }
+      function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+      function setTool(next) {
+        tool = next;
+        toolButtons.forEach(function (b) {
+          var on = b.dataset.tool === next;
+          b.classList.toggle("is-active", on);
+          b.setAttribute("aria-pressed", String(on));
+        });
+        stage.dataset.tool = next;
+      }
+
+      function styleShape(el, s) {
+        el.style.left = s.x + "px";
+        el.style.top = s.y + "px";
+        el.style.width = s.w + "px";
+        el.style.height = s.h + "px";
+        el.style.background = s.fill;
+        el.style.border = "2px solid " + s.stroke;
+      }
+
+      function makeEl(type) {
+        var el = document.createElement("div");
+        el.className = "me-shape " + type;
+        return el;
+      }
+
+      function elById(id) { return stage.querySelector('[data-id="' + id + '"]'); }
+
+      function hitTest(x, y) {
+        for (var i = shapes.length - 1; i >= 0; i--) {
+          var s = shapes[i];
+          if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) return s;
+        }
+        return null;
+      }
+
+      function select(id) {
+        if (selectedId === id) return;
+        if (selectedId != null) {
+          var prev = elById(selectedId);
+          if (prev) prev.classList.remove("is-selected");
+        }
+        selectedId = id;
+        if (id != null) {
+          var el = elById(id);
+          if (el) el.classList.add("is-selected");
+        }
+      }
+
+      function updateHint() {
+        if (hint) hint.classList.toggle("is-hidden", shapes.length > 0);
+      }
+
+      function removeShape(id) {
+        shapes = shapes.filter(function (s) { return s.id !== id; });
+        var el = elById(id);
+        if (el) el.remove();
+        if (selectedId === id) selectedId = null;
+        updateHint();
+      }
+
+      function onPointerDown(e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        e.preventDefault();
+        var p = pointFromEvent(e);
+        var r = bounds();
+
+        if (tool === "rect" || tool === "ellipse") {
+          try { if (stage.setPointerCapture) stage.setPointerCapture(e.pointerId); } catch (err) {}
+          draft = { type: tool, x0: clamp(p.x, 0, r.width), y0: clamp(p.y, 0, r.height), box: null };
+          draft.el = makeEl(tool);
+          styleShape(draft.el, { x: draft.x0, y: draft.y0, w: 0, h: 0, fill: "rgba(37,99,235,.12)", stroke: "#2563eb" });
+          stage.appendChild(draft.el);
+          updateHint();
+        } else {
+          var hit = hitTest(p.x, p.y);
+          if (hit) {
+            select(hit.id);
+            try { if (stage.setPointerCapture) stage.setPointerCapture(e.pointerId); } catch (err) {}
+            move = { id: hit.id, ox: p.x - hit.x, oy: p.y - hit.y };
+          } else {
+            select(null);
+          }
+        }
+      }
+
+      function onPointerMove(e) {
+        if (draft) {
+          var pr = pointFromEvent(e);
+          var rr = bounds();
+          var x = clamp(Math.min(pr.x, draft.x0), 0, rr.width);
+          var y = clamp(Math.min(pr.y, draft.y0), 0, rr.height);
+          var w = clamp(Math.abs(pr.x - draft.x0), 0, rr.width - x);
+          var h = clamp(Math.abs(pr.y - draft.y0), 0, rr.height - y);
+          var box = { x: x, y: y, w: w, h: h };
+          draft.box = box;
+          styleShape(draft.el, { x: box.x, y: box.y, w: box.w, h: box.h, fill: "rgba(37,99,235,.12)", stroke: "#2563eb" });
+        } else if (move) {
+          var s = null;
+          for (var i = 0; i < shapes.length; i++) { if (shapes[i].id === move.id) { s = shapes[i]; break; } }
+          if (!s) return;
+          var p = pointFromEvent(e);
+          var r = bounds();
+          s.x = clamp(p.x - move.ox, 0, r.width - s.w);
+          s.y = clamp(p.y - move.oy, 0, r.height - s.h);
+          var el = elById(s.id);
+          if (el) styleShape(el, s);
+        }
+      }
+
+      function onPointerUp(e) {
+        if (draft) {
+          var box = draft.box;
+          draft.el.remove();
+          if (box && box.w >= 10 && box.h >= 10) {
+            var pal = PALETTE[colorIndex % PALETTE.length];
+            colorIndex++;
+            var s = {
+              id: ++seq,
+              type: draft.type,
+              x: Math.round(box.x),
+              y: Math.round(box.y),
+              w: Math.round(box.w),
+              h: Math.round(box.h),
+              fill: pal.fill,
+              stroke: pal.stroke
+            };
+            shapes.push(s);
+            var el = makeEl(s.type);
+            el.dataset.id = String(s.id);
+            styleShape(el, s);
+            stage.appendChild(el);
+            select(s.id);
+          }
+          draft = null;
+          updateHint();
+        }
+        move = null;
+        if (stage.releasePointerCapture && e && e.pointerId != null) {
+          try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
+        }
+      }
+
+      stage.addEventListener("pointerdown", onPointerDown);
+      stage.addEventListener("pointermove", onPointerMove);
+      stage.addEventListener("pointerup", onPointerUp);
+      stage.addEventListener("pointercancel", onPointerUp);
+      stage.addEventListener("dragstart", function (e) { e.preventDefault(); });
+
+      stage.addEventListener("keydown", function (e) {
+        if (e.code === "KeyV") { setTool("select"); e.preventDefault(); }
+        else if (e.code === "KeyR") { setTool("rect"); e.preventDefault(); }
+        else if (e.code === "KeyO") { setTool("ellipse"); e.preventDefault(); }
+        else if (e.key === "Delete" || e.key === "Backspace") {
+          if (selectedId != null) { removeShape(selectedId); e.preventDefault(); }
+        } else if (e.key === "Escape") {
+          select(null);
+        }
+      });
+
+      toolButtons.forEach(function (b) {
+        b.addEventListener("click", function () { setTool(b.dataset.tool); stage.focus(); });
+      });
+
+      if (clearButton) {
+        clearButton.addEventListener("click", function () {
+          shapes = [];
+          seq = 0;
+          selectedId = null;
+          stage.querySelectorAll(".me-shape").forEach(function (n) { n.remove(); });
+          updateHint();
+        });
+      }
+
+      setTool("select");
+      updateHint();
+    })();
+  </script>
+</body>
+</html>
